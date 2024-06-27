@@ -98,6 +98,7 @@ def main(args):
     #####
     adb_path = args.adb_path
     output_dir = args.output
+    max_task_step = 20
     #####
     
     if args.output is not None:
@@ -168,6 +169,9 @@ def main(args):
             logger.info(f"Step tracing {iter} decide TASK_IMPOSSIBLE \n generated action : {gen_action} \n closing the loop")
             break
         iter += 1
+        if iter > max_task_step:
+            logger.warning(f"Task action step exceed {max_task_step}, force quit.")
+            break
 
         time.sleep(5)
     
