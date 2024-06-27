@@ -179,6 +179,7 @@ def main(args):
     source_path = f"./screenshot/{uuid}.log"
     destination_path = os.path.join(temp_file, f"{uuid}.log")
     shutil.copy(source_path, destination_path)
+    home(adb_path)
 
     
 if __name__ == "__main__":
