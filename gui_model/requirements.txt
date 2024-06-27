@@ -1,0 +1,12 @@
+torch
+torchvision
+transformers
+opencv-python
+matplotlib
+pycocotools
+timm
+SentencePiece
+tf_slim
+tf_keras
+pyclipper
+shapely
