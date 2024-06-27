@@ -1,5 +1,6 @@
 import os
 import time
+import json
 import argparse
 import shutil
 from uuid import uuid4 as uuid
@@ -12,7 +13,6 @@ from MobileAgent.controller import get_screenshot, tap, slide, type, back, home,
 
 def get_id():
     return str(uuid()).replace('-', '')
-
 
 def get_all_files_in_folder(folder_path):
     file_list = []
@@ -66,7 +66,6 @@ def add_text_to_image(img, draw, text, position='bottom', font_path='/System/Lib
     draw.text(text_position, text, font=font, fill=text_color)
     return new_image
 
-
 def label_screenshot_and_save(src_img, gen_action, target_dir, iter):
     img = Image.open(src_img)
     draw = ImageDraw.Draw(img)
@@ -113,6 +112,9 @@ def main(args):
         os.mkdir(screenshot)
     if not os.path.exists(labeled_screenshot_folder):
         os.mkdir(labeled_screenshot_folder)
+
+    with open(os.path.join(temp_file, 'meta_info.json'), 'w') as fw:
+        fw.write(json.dumps(args.__dict__, ensure_ascii=False))
 
     logger.info(F"Task Start: {args.task_instruction}")
 
