@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # 定义一个包含指令的数组
-instructions=( "播放泰勒·斯威夫特的Love Story" "播放Shape of You" "播放李宗盛的专辑山丘" "播放我的爱心选集歌单" "播放一些林俊杰的歌" "播放张国荣的任意专辑" "播放一些晴天的歌曲" "播放一些快乐的歌曲" "播放一些爵士乐" "播放我收藏的音乐" "请将当前播放的歌曲加入我的收藏" "请帮我从收藏里移除这首歌" "下载当前播放的歌曲到手机" "将当前播放的音乐加入到‘流行音乐’播放列表中" "启动单曲循环模式" "让所有曲目按原始顺序播放" "将当前播放列表设置为循环模式" "播放这首歌的不同版本" "打开正在听的歌曲的MV" "从我的音乐播放列表里移除夜曲" "切换到无损音质播放这首歌" "这首歌是由哪位歌手演唱的？" "查看当前播放的歌曲是哪个专辑的" "显示这首歌的所有评论" "显示当前歌曲的歌词" "查看当前播放的歌曲列表" "打开我的最近播放列表" "激活关注当前正在播放的这位演唱者" "播放这个歌手的其他热门歌曲" "查看这个歌手所有的专辑名称" "播放这个歌手的最新音乐视频" "在评论区帮我发一个“这首歌好带劲”的评论")
+instructions=( "play Taylor Swift Love Story" "Play the song Shape of You" "Play the album  30 from Adele" "play my favorite playlist" "Play some music from JJ lin" "Play a random album from  Jay chou" "Play a song about sunny day" "Play a happy song" "I want some jazz music" "Play the music i liked" "Put the current playing song into my favorite playlist" "Remove this song from my playlist" "Download this song to my phone" "Put this song into my pop music playlist" "Enable single song loop" "Play all the songs in order" "Loop playing this playlist" "Find a different version of this song" "Watch the mv of this song" "Remove the love story from my playlist" "Enble the hifi mode" "Who sings this song" "Check the album of this song" "Check the user comments about this song" "Show the lyrics" "Check the current playlist" "Open the reccent playlist" "Subscribe the singer of this song" "Find another popular song by this singer" "Check all the albums by this singer" "Play the newest song by the singer" "Post a comment, quote amazing music on this song")
 
 # 遍历指令数组
 for instruction in "${instructions[@]}"

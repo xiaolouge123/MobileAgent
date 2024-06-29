@@ -9,7 +9,7 @@ from MobileAgent.api import model_chat
 from PIL import Image, ImageDraw, ImageFont
 import math
 
-from MobileAgent.controller import get_screenshot, tap, slide, type, back, home, enter
+from MobileAgent.controller import get_screenshot, tap, slide, type, back, home, enter, ime_switch
 
 def get_id():
     return str(uuid()).replace('-', '')
@@ -98,7 +98,7 @@ def main(args):
     #####
     adb_path = args.adb_path
     output_dir = args.output
-    max_task_step = 20
+    max_task_step = 30
     #####
     
     if args.output is not None:
@@ -180,6 +180,7 @@ def main(args):
     destination_path = os.path.join(temp_file, f"{uuid}.log")
     shutil.copy(source_path, destination_path)
     home(adb_path)
+    ime_switch(adb_path, ime=None)
 
     
 if __name__ == "__main__":

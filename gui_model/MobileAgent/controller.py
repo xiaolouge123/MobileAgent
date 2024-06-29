@@ -80,15 +80,25 @@ def contains_cjk(text):
     cjk_pattern = re.compile(r'[\u4e00-\u9fff\u3400-\u4dbf\uac00-\ud7af\u3040-\u309f\u30a0-\u30ff]')
     return bool(cjk_pattern.search(text))
 
+def ime_switch(adb_path, ime='adb'):
+    if ime=='adb':
+        command = adb_path + f" shell ime set com.android.adbkeyboard/.AdbIME"
+        subprocess.run(command, capture_output=True, text=True, shell=True)
+    else:
+        command = adb_path + f" shell ime set com.sohu.inputmethod.sogou.xiaomi/.SogouIME"
+        subprocess.run(command, capture_output=True, text=True, shell=True)
+
 def type(adb_path, text):
     text = text.replace("\\n", "_").replace("\n", "_")
-    
-    # TODO 中文输入的支持问题。看看到底怎么实现
-    # if contains_cjk(text):
-    #     command = adb_path + f" shell input text {text}"
-    #     subprocess.run(command, capture_output=True, text=True, shell=True)
-    #     return
-
+    if contains_cjk(text):
+        ime_switch(adb_path, ime='adb')
+        time.sleep(1)
+        command = adb_path + f" shell am broadcast -a ADB_INPUT_TEXT --es msg \"{text}\""
+        subprocess.run(command, capture_output=True, text=True, shell=True)
+        time.sleep(1)
+        ime_switch(adb_path, ime=None)
+        return
+     
     for char in text:
         if char == ' ':
             command = adb_path + f" shell input text %s"
