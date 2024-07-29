@@ -93,7 +93,7 @@ def output_parser(generation, width, height):
 
     res = generation.get('generated_text', [])
     if len(res)>0:
-        res = res[0].rstrip('<|im_end|>')
+        res = res[0].rstrip('<|im_end|>').strip()
     else:
         raise ValueError(f'No generation text. {generation}')
     
@@ -106,7 +106,7 @@ def output_parser(generation, width, height):
     actionName = match.group(1).strip()
     
     if actionName not in action_space:
-        raise ValueError(f"Not a supported action name in current action_space: {actionName}")
+        raise ValueError(f"Not a supported action name in current action_space: {actionName}, {generation}")
     
     if actionName in pos_action:
         match = re.search(r'\[\[(.*?)\]\]', res)

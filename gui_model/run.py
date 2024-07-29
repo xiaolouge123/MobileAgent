@@ -173,7 +173,7 @@ def main(args):
             logger.warning(f"Task action step exceed {max_task_step}, force quit.")
             break
 
-        time.sleep(5)
+        time.sleep(2)
     
     logger.info('Agent Looping is over, we ara about to close. copy log file to task folder')
     source_path = f"./screenshot/{uuid}.log"
