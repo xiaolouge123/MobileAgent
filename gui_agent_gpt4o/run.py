@@ -8,7 +8,7 @@ from loguru import logger
 from PIL import Image, ImageDraw, ImageFont
 import math
 from rich import print as color_print
-
+from textwrap import wrap
 
 from MobileAgent.api import model_chat, request_with_tools
 from MobileAgent.prompts import get_prompt_with_tools, tools
@@ -82,17 +82,37 @@ def add_text_to_image(
         new_image = Image.new("RGB", (img.width, img.height + border_size), "white")
         new_image.paste(img, (0, border_size))  # 将原图粘贴到底部，顶部留白
         text_position = (10, 10)
+        text_y = 10
     else:
         new_image = Image.new("RGB", (img.width, img.height + border_size), "white")
         new_image.paste(img, (0, 0))  # 将原图粘贴到顶部
         text_position = (10, img.height + 10)
+        text_y = img.height + 10
+
     draw = ImageDraw.Draw(new_image)
     try:
         font = ImageFont.truetype(font_path, font_size)
     except IOError:
         logger.warning("font error")
         font = ImageFont.load_default()
-    draw.text(text_position, text, font=font, fill=text_color)
+
+    max_width = img.width - 20  # 左右各留10像素的边距
+    chars_per_line = max(1, max_width // font_size)
+
+    # 使用 textwrap 模块进行文本换行
+    wrapped_text = wrap(text, width=chars_per_line)
+
+    # 逐行绘制文本
+    for line in wrapped_text:
+        # 使用 textbbox 代替 textsize
+        bbox = draw.textbbox((0, 0), line, font=font)
+        line_width = bbox[2] - bbox[0]
+        line_height = bbox[3] - bbox[1]
+
+        x = (img.width - line_width) // 2  # 居中显示每一行
+        draw.text((x, text_y), line, font=font, fill=text_color)
+        text_y += line_height + 5  # 行间距为5像素
+
     return new_image
 
 
@@ -105,10 +125,16 @@ def label_screenshot_and_save(src_img, ops_details, target_dir, iter, distance=5
             radia = 40
             x, y = detail["param"][0], detail["param"][1]
             draw.ellipse((x - radia, y - radia, x + radia, y + radia), fill="orange")
+            bbox = detail.get("bbox", None)
+            if bbox:
+                draw.rectangle(bbox, outline="red", width=3)
         elif detail["ops"] == "LONGPRESS":
             radia = 40
             x, y = detail["param"][0], detail["param"][1]
             draw.ellipse((x - radia, y - radia, x + radia, y + radia), fill="blue")
+            bbox = detail.get("bbox", None)
+            if bbox:
+                draw.rectangle(bbox, outline="red", width=3)
         elif detail["ops"] == "SWIPE":
             direction = detail["param"]
             x1, y1 = width / 2, height / 2
@@ -125,12 +151,15 @@ def label_screenshot_and_save(src_img, ops_details, target_dir, iter, distance=5
                     "Invalid direction. Use 'up', 'down', 'left', or 'right'."
                 )
             draw_arrow(draw, (x1, y1), (x2, y2))
+            bbox = detail.get("bbox", None)
+            if bbox:
+                draw.rectangle(bbox, outline="red", width=3)
         else:
             pass
 
     text = f"Step {iter}"
     for d in ops_details:
-        text += f"\n{json.dumps(d)}"
+        text += f"\n{json.dumps(d, ensure_ascii=False)}"
     img = add_text_to_image(img, draw, text)
     img.save(os.path.join(target_dir, f"screenshot_iter_{iter}.jpg"))
 
@@ -253,6 +282,10 @@ def main(args):
             asking_user_for_help = "0"
 
         time.sleep(2)
+
+    screenshot_file = "./screenshot/screenshot.jpg"
+    get_screenshot(adb_path)
+    copy_screenshot(screenshot_file, temp_file, iter)
 
     logger.info(
         "Agent Looping is over, we ara about to close. copy log file to task folder"

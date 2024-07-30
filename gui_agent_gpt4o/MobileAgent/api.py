@@ -196,7 +196,10 @@ def encode_image(image_path: str):
 
 def query_openai(payload):
     """Sends a request to the OpenAI API and prints the response."""
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {openai_api_key}"}
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {openai_api_key}",
+    }
     proxies = {
         "http": "http://127.0.0.1:7890",
         "https": "http://127.0.0.1:7890",
@@ -210,16 +213,22 @@ def query_openai(payload):
     logger.info(f"OpenAI response: {response.text}")
     return response.json()
 
+
 def query_azure(payload, model="gpt4o-0513", version="2024-02-01"):
     headers = {"Content-Type": "application/json", "api-key": f"{azure_api_key}"}
+    proxies = {
+        "http": "http://127.0.0.1:7890",
+        "https": "http://127.0.0.1:7890",
+    }
     response = requests.post(
         f"https://gpt-st-westus3-1.openai.azure.com/openai/deployments/{model}/chat/completions?api-version={version}",
         headers=headers,
         json=payload,
-        # proxies=proxies,
+        proxies=proxies,
     )
     logger.info(f"Azure response: {response.text}")
     return response.json()
+
 
 def get_current_time():
     current_time = time.localtime()

@@ -3,12 +3,13 @@ import time
 import json
 import re
 import subprocess
-import uiautomator2 as u2
+
+# import uiautomator2 as u2
 import requests
 from PIL import Image, ImageDraw
 from loguru import logger
 
-d = u2.connect()
+# d = u2.connect()
 delay = 2
 use_u2 = False
 
@@ -236,7 +237,7 @@ def extract_coordinates(input_string, width, height):
 
 
 def gui_model_api(api_path, image_path, question):
-    logger.info("Calling GUI model API...")
+    logger.info(f"Calling GUI model API on {question}")
     headers = {"Connection": "close"}
     with open(image_path, "rb") as img:
         files = {"image": img}
@@ -293,18 +294,33 @@ def control_handler(tool_call, adb_path):
             f"对{ui_query}元素的点击操作已下发至设备，具体效果以屏幕截图为准。"
         )
         ops_detail.append(
-            {"ops": "CLICK", "param": (x, y), "name": "tap", "type": "controller"}
+            {
+                "ops": "CLICK",
+                "param": (x, y),
+                "name": "tap",
+                "type": "controller",
+                "bbox": bbox,
+                "ui_query": ui_query,
+            }
         )
     elif operation == "text":
         # tap input ui area
         ui_query = arguments.get("elements")
-        bbox, img_before_ops_path = grounding(ui_query, img_before_ops_path)
-        x = (bbox[0] + bbox[2]) / 2
-        y = (bbox[1] + bbox[3]) / 2
-        tap(adb_path, x, y)
-        ops_detail.append(
-            {"ops": "CLICK", "param": (x, y), "name": "text", "type": "controller"}
-        )
+        if ui_query:
+            bbox, img_before_ops_path = grounding(ui_query, img_before_ops_path)
+            x = (bbox[0] + bbox[2]) / 2
+            y = (bbox[1] + bbox[3]) / 2
+            tap(adb_path, x, y)
+            ops_detail.append(
+                {
+                    "ops": "CLICK",
+                    "param": (x, y),
+                    "name": "text",
+                    "type": "controller",
+                    "bbox": bbox,
+                    "ui_query": ui_query,
+                }
+            )
         # input text content
         text_content = arguments.get("text_content")
         type(adb_path, text_content)
@@ -323,7 +339,14 @@ def control_handler(tool_call, adb_path):
         direction = arguments.get("direction")
         swipe(adb_path, direction)
         ops_detail.append(
-            {"ops": "SWIPE", "param": direction, "name": "swipe", "type": "controller"}
+            {
+                "ops": "SWIPE",
+                "param": direction,
+                "name": "swipe",
+                "type": "controller",
+                "bbox": bbox,
+                "ui_query": ui_query,
+            }
         )
         function_response = (
             f"{direction}方向的滑动操作已下发至设备，具体效果以屏幕截图为准。"
@@ -340,6 +363,8 @@ def control_handler(tool_call, adb_path):
                 "param": (x, y),
                 "name": "longclick",
                 "type": "controller",
+                "bbox": bbox,
+                "ui_query": ui_query,
             }
         )
         function_response = (
@@ -433,6 +458,7 @@ def handle_tool_calls(tool_calls, adb_path):
     logger.info(f"Handling tool calls: {len(tool_calls)} in total.")
     function_responses = []
     detailed_tool_call_infos = []
+    img_before_ops_path, img_after_ops_path = None, None
     for tool_call in tool_calls:
         function_response = None
         ops_detail = []

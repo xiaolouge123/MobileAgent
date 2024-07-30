@@ -2,6 +2,7 @@
 tmp*
 output
 screenshot
+.DS_Store
 
 # data
 assets/key_pool.txt
