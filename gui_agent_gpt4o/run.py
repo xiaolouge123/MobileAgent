@@ -123,7 +123,7 @@ def main(args):
     #####
     adb_path = args.adb_path
     output_dir = args.output
-    max_task_step = 30
+    max_task_step = 15
     #####
     
     if args.output is not None:
@@ -176,12 +176,14 @@ def main(args):
             color_print(f"[yellow]{response_content}[/yellow]")
         
         if tools_calls:
-            function_response, img_before, img_after = handle_tool_calls(tools_calls, adb_path)
-            history.append(function_response)
+            function_responses, img_before, img_after = handle_tool_calls(tools_calls, adb_path)
+            for function_response in function_responses:
+                history.append(function_response)
             set_ops_img_paths(img_before, img_after)
         
         if bool(int(model_output.get('finish'))):
             color_print(f"[green]任务已完成啦！[/green]")
+            break
         
         iter += 1
         if iter > max_task_step:

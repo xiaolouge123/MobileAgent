@@ -3,12 +3,14 @@ import time
 import json
 import re
 import subprocess
+import uiautomator2 as u2
 import requests
 from PIL import Image, ImageDraw
 from loguru import logger
 
+d = u2.connect()
 delay = 2
-
+use_u2 = False
 
 def get_size(adb_path):
     command = adb_path + " shell wm size"
@@ -16,7 +18,6 @@ def get_size(adb_path):
     resolution_line = result.stdout.strip().split("\n")[-1]
     width, height = map(int, resolution_line.split(" ")[-1].split("x"))
     return width, height
-
 
 def get_xml(adb_path):
     process = subprocess.Popen(
@@ -26,7 +27,6 @@ def get_xml(adb_path):
     subprocess.run(
         [adb_path, "pull", "/sdcard/window_dump.xml", "./xml/window_dump.xml"]
     )
-
 
 def take_screenshots(
     adb_path,
@@ -63,7 +63,6 @@ def take_screenshots(
             ]
         )
 
-
 def get_screenshot(adb_path, save_path=None):
     command = adb_path + " shell rm /sdcard/screenshot.png"
     subprocess.run(command, capture_output=True, text=True, shell=True)
@@ -79,7 +78,6 @@ def get_screenshot(adb_path, save_path=None):
     image = Image.open(image_path)
     image.convert("RGB").save(save_path, "JPEG")
     os.remove(image_path)
-
 
 def get_keyboard(adb_path):
     command = adb_path + " shell dumpsys input_method"
@@ -100,10 +98,12 @@ def get_keyboard(adb_path):
             elif "mInputShown=false" in line:
                 return False, None
 
-
 def tap(adb_path, x, y):
-    command = adb_path + f" shell input tap {x} {y}"
-    subprocess.run(command, capture_output=True, text=True, shell=True)
+    if use_u2:
+        d.click(x, y)
+    else:
+        command = adb_path + f" shell input tap {x} {y}"
+        subprocess.run(command, capture_output=True, text=True, shell=True)
 
 
 def contains_cjk(text):
@@ -296,7 +296,7 @@ def control_handler(tool_call, adb_path):
         text_content = arguments.get("text_content")
         type(adb_path, text_content)
         # press enter
-        enter()
+        enter(adb_path)
         function_response = f"输入{text_content}已下发至设备，具体效果以屏幕截图为准。"
     elif operation == "swipe":
         ui_query = arguments.get("elements")
@@ -388,4 +388,5 @@ def handle_tool_calls(tool_calls, adb_path):
             pass
         if function_response:
             function_responses.append(function_response)
-    return function_response, img_before_ops_path, img_after_ops_path
+    logger.info(f"TOTAL Tool calls responses: {function_responses}")
+    return function_responses, img_before_ops_path, img_after_ops_path

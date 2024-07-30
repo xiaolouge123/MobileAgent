@@ -10,7 +10,9 @@ from loguru import logger
 from MobileAgent.prompts import tools
 
 
-api_key = os.environ.get("OPENAI_API")
+openai_api_key = os.environ.get("OPENAI_API")
+azure_api_key = os.environ.get("AZURE_API")
+use_azure = bool(int(os.environ.get("USE_AZURE", 0)))
 
 
 # img_path: local image path or image url like http://xxx
@@ -169,9 +171,13 @@ def model_chat(img_path, instruction="打开qq音乐", host="103.237.29.210", po
 
 
 def get_response_with_tools(payload):
-    response = query_openai(payload)
+    if use_azure:
+        response = query_azure(payload)
+    else:
+        response = query_openai(payload)
+    logger.info(f"LLM response: {response}")
     response_message = response["choices"][0]["message"]
-    tool_calls = response_message["tool_calls"]
+    tool_calls = response_message.get("tool_calls")
     logger.info(f"Response message: {response_message}")
     logger.info(f"Tool calls: {tool_calls}")
     return response_message, tool_calls
@@ -190,7 +196,7 @@ def encode_image(image_path: str):
 
 def query_openai(payload):
     """Sends a request to the OpenAI API and prints the response."""
-    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {api_key}"}
+    headers = {"Content-Type": "application/json", "Authorization": f"Bearer {openai_api_key}"}
     proxies = {
         "http": "http://127.0.0.1:7890",
         "https": "http://127.0.0.1:7890",
@@ -204,6 +210,16 @@ def query_openai(payload):
     logger.info(f"OpenAI response: {response.text}")
     return response.json()
 
+def query_azure(payload, model="gpt4o-0513", version="2024-02-01"):
+    headers = {"Content-Type": "application/json", "api-key": f"{azure_api_key}"}
+    response = requests.post(
+        f"https://gpt-st-westus3-1.openai.azure.com/openai/deployments/{model}/chat/completions?api-version={version}",
+        headers=headers,
+        json=payload,
+        # proxies=proxies,
+    )
+    logger.info(f"Azure response: {response.text}")
+    return response.json()
 
 def get_current_time():
     current_time = time.localtime()
@@ -264,7 +280,7 @@ def create_payload(
     img_before_ops=None,
     img_after_ops=None,
     tools=None,
-    max_tokens=1280,
+    max_tokens=3000,
     model="gpt-4o-2024-05-13",
 ):
     """
@@ -278,15 +294,15 @@ def create_payload(
         _tmp.append({"role": "system", "content": system_prompt})
     if user_instruction:
         messages.append(
-            {"role": "system", "content": [{"type": "text", "text": user_instruction}]}
+            {"role": "user", "content": [{"type": "text", "text": user_instruction}]}
         )
         _tmp.append(
-            {"role": "system", "content": [{"type": "text", "text": user_instruction}]}
+            {"role": "user", "content": [{"type": "text", "text": user_instruction}]}
         )
     if len(history) > 0:
-        messages.append(history)
-        _tmp.append(history)
-        _history += history
+        messages.extend(history)
+        _tmp.extend(history)
+        _history.extend(history)
 
     if img_before_ops:
         msg, msg_wo_enc = generate_image_message(
@@ -336,7 +352,7 @@ def create_payload(
             "tool_choice": "auto",
             "response_format": {"type": "json_object"},
         }
-        logger.info(f"OpenAI request payload: {p}")
+        logger.info(f"Request payload: {json.dumps(p, ensure_ascii=False)}")
     else:
         p = {
             "model": model,
@@ -344,7 +360,7 @@ def create_payload(
             "max_tokens": max_tokens,
             "response_format": {"type": "json_object"},
         }
-        logger.info(f"OpenAI request payload: {p}")
+        logger.info(f"Request payload: {json.dumps(p, ensure_ascii=False)}")
 
     if tools:
         return {
