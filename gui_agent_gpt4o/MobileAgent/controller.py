@@ -12,12 +12,14 @@ d = u2.connect()
 delay = 2
 use_u2 = False
 
+
 def get_size(adb_path):
     command = adb_path + " shell wm size"
     result = subprocess.run(command, capture_output=True, text=True, shell=True)
     resolution_line = result.stdout.strip().split("\n")[-1]
     width, height = map(int, resolution_line.split(" ")[-1].split("x"))
     return width, height
+
 
 def get_xml(adb_path):
     process = subprocess.Popen(
@@ -27,6 +29,7 @@ def get_xml(adb_path):
     subprocess.run(
         [adb_path, "pull", "/sdcard/window_dump.xml", "./xml/window_dump.xml"]
     )
+
 
 def take_screenshots(
     adb_path,
@@ -63,6 +66,7 @@ def take_screenshots(
             ]
         )
 
+
 def get_screenshot(adb_path, save_path=None):
     command = adb_path + " shell rm /sdcard/screenshot.png"
     subprocess.run(command, capture_output=True, text=True, shell=True)
@@ -78,6 +82,7 @@ def get_screenshot(adb_path, save_path=None):
     image = Image.open(image_path)
     image.convert("RGB").save(save_path, "JPEG")
     os.remove(image_path)
+
 
 def get_keyboard(adb_path):
     command = adb_path + " shell dumpsys input_method"
@@ -97,6 +102,7 @@ def get_keyboard(adb_path):
                 return True, hintText
             elif "mInputShown=false" in line:
                 return False, None
+
 
 def tap(adb_path, x, y):
     if use_u2:
@@ -166,7 +172,7 @@ def slide(adb_path, x1, y1, x2, y2):
     subprocess.run(command, capture_output=True, text=True, shell=True)
 
 
-def swipe(adb_path, direction, distance=200, duration=500):
+def swipe(adb_path, direction, distance=500, duration=500):
     # 获取屏幕尺寸
     size_command = f"{adb_path} shell wm size"
     result = subprocess.run(size_command, capture_output=True, text=True, shell=True)
@@ -274,6 +280,7 @@ def control_handler(tool_call, adb_path):
     get_screenshot(adb_path, save_path=img_before_ops_path)
     arguments = json.loads(tool_call["function"]["arguments"])
     operation = arguments.get("operation")
+    ops_detail = []
     if operation == "tap":
         logger.info("Handling tap operation...")
         ui_query = arguments.get("elements")
@@ -285,6 +292,9 @@ def control_handler(tool_call, adb_path):
         function_response = (
             f"对{ui_query}元素的点击操作已下发至设备，具体效果以屏幕截图为准。"
         )
+        ops_detail.append(
+            {"ops": "CLICK", "param": (x, y), "name": "tap", "type": "controller"}
+        )
     elif operation == "text":
         # tap input ui area
         ui_query = arguments.get("elements")
@@ -292,17 +302,29 @@ def control_handler(tool_call, adb_path):
         x = (bbox[0] + bbox[2]) / 2
         y = (bbox[1] + bbox[3]) / 2
         tap(adb_path, x, y)
+        ops_detail.append(
+            {"ops": "CLICK", "param": (x, y), "name": "text", "type": "controller"}
+        )
         # input text content
         text_content = arguments.get("text_content")
         type(adb_path, text_content)
+        ops_detail.append(
+            {"ops": "TYPE", "param": text_content, "name": "text", "type": "controller"}
+        )
         # press enter
         enter(adb_path)
+        ops_detail.append(
+            {"ops": "ENTER", "param": None, "name": "text", "type": "controller"}
+        )
         function_response = f"输入{text_content}已下发至设备，具体效果以屏幕截图为准。"
     elif operation == "swipe":
         ui_query = arguments.get("elements")
         bbox, img_before_ops_path = grounding(ui_query, img_before_ops_path)
         direction = arguments.get("direction")
         swipe(adb_path, direction)
+        ops_detail.append(
+            {"ops": "SWIPE", "param": direction, "name": "swipe", "type": "controller"}
+        )
         function_response = (
             f"{direction}方向的滑动操作已下发至设备，具体效果以屏幕截图为准。"
         )
@@ -312,25 +334,44 @@ def control_handler(tool_call, adb_path):
         x = (bbox[0] + bbox[2]) / 2
         y = (bbox[1] + bbox[3]) / 2
         longpress(adb_path, x, y)
+        ops_detail.append(
+            {
+                "ops": "LONGPRESS",
+                "param": (x, y),
+                "name": "longclick",
+                "type": "controller",
+            }
+        )
         function_response = (
             f"对{ui_query}元素的长按操作已下发至设备，具体效果以屏幕截图为准。"
         )
     elif operation == "back":
         b_times = arguments.get("back_times")
-        for i in range(int(b_times)):
+        for _ in range(int(b_times)):
             back(adb_path)
             time.sleep(0.5)
+        ops_detail.append(
+            {"ops": "BACK", "param": b_times, "name": "back", "type": "controller"}
+        )
         function_response = "返回操作已下发至设备，具体效果以屏幕截图为准"
     elif operation == "home":
         home(adb_path)
+        ops_detail.append(
+            {"ops": "HOME", "param": None, "name": "back", "type": "controller"}
+        )
         function_response = "回到桌面操作已下发至设备，具体效果以屏幕截图为准"
     else:
-        return {
-            "tool_call_id": tool_call["id"],
-            "role": "tool",
-            "name": tool_call["function"]["name"],
-            "content": f"{tool_call['function']['name']}没有被识别，请确保operation为\"tap\",\"swipe\",\"longclick\",\"text\",\"back\",\"home\"之一。",
-        }
+        return (
+            {
+                "tool_call_id": tool_call["id"],
+                "role": "tool",
+                "name": tool_call["function"]["name"],
+                "content": f"{tool_call['function']['name']}没有被识别，请确保operation为\"tap\",\"swipe\",\"longclick\",\"text\",\"back\",\"home\"之一。",
+            },
+            img_before_ops_path,
+            None,
+            [],
+        )
 
     controller_response = {
         "tool_call_id": tool_call["id"],
@@ -342,7 +383,7 @@ def control_handler(tool_call, adb_path):
     time.sleep(delay)
     img_after_ops_path = f"./screenshot/screenshot_after_ops.png"
     get_screenshot(adb_path, save_path=img_after_ops_path)
-    return controller_response, img_before_ops_path, img_after_ops_path
+    return controller_response, img_before_ops_path, img_after_ops_path, ops_detail
 
 
 def shortcut_handler(tool_call, adb_path):
@@ -350,15 +391,32 @@ def shortcut_handler(tool_call, adb_path):
     img_before_ops_path = f"./screenshot/screenshot_before_ops.png"
     get_screenshot(adb_path, save_path=img_before_ops_path)
     arguments = json.loads(tool_call["function"]["arguments"])
+    ops_detail = []
     if arguments.get("shortcut_name") == "系统下拉菜单":
         # 为了快速实现写死了，最好是匹配设备后执行动作缓存
         # TODO 尝试理解后调整
         slide(adb_path, 650, 0, 650, 1100)
         time.sleep(0.5)
         slide(adb_path, 650, 0, 650, 1100)
+        ops_detail.append(
+            {
+                "ops": "SLIDE",
+                "param": (650, 0, 650, 1100),
+                "name": "系统下拉菜单",
+                "type": "shortcut_name",
+            }
+        )
     if arguments.get("shortcut_name") == "进入系统应用列表":
         home(adb_path)
         slide(adb_path, 360, 1000, 360, 0)
+        ops_detail.append(
+            {
+                "ops": "SLIDE",
+                "param": (360, 1000, 360, 0),
+                "name": "进入系统应用列表",
+                "type": "shortcut_name",
+            }
+        )
     time.sleep(delay)
     img_after_ops_path = f"./screenshot/screenshot_after_ops.png"
     get_screenshot(adb_path, save_path=img_after_ops_path)
@@ -368,25 +426,35 @@ def shortcut_handler(tool_call, adb_path):
         "name": tool_call["function"]["name"],
         "content": "快捷指令已从下发至设备，实现效果以屏幕效果为准",
     }
-    return function_response, img_before_ops_path, img_after_ops_path
+    return function_response, img_before_ops_path, img_after_ops_path, ops_detail
 
 
 def handle_tool_calls(tool_calls, adb_path):
     logger.info(f"Handling tool calls: {len(tool_calls)} in total.")
     function_responses = []
+    detailed_tool_call_infos = []
     for tool_call in tool_calls:
         function_response = None
+        ops_detail = []
         if tool_call["function"]["name"] == "controller":
-            function_response, img_before_ops_path, img_after_ops_path = (
+            function_response, img_before_ops_path, img_after_ops_path, ops_detail = (
                 control_handler(tool_call, adb_path)
             )
         elif tool_call["function"]["name"] == "shortcut":
-            function_response, img_before_ops_path, img_after_ops_path = (
+            function_response, img_before_ops_path, img_after_ops_path, ops_detail = (
                 shortcut_handler(tool_call, adb_path)
             )
         else:
             pass
         if function_response:
             function_responses.append(function_response)
+        if len(ops_detail) > 0:
+            detailed_tool_call_infos.extend(ops_detail)
     logger.info(f"TOTAL Tool calls responses: {function_responses}")
-    return function_responses, img_before_ops_path, img_after_ops_path
+    logger.info(f"TOTAL Tool calls details: {detailed_tool_call_infos}")
+    return (
+        function_responses,
+        img_before_ops_path,
+        img_after_ops_path,
+        detailed_tool_call_infos,
+    )
