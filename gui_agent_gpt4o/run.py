@@ -62,7 +62,7 @@ def add_text_to_image(
     text,
     position="bottom",
     font_path="/System/Library/Fonts/STHeiti Light.ttc",
-    font_size=30,
+    font_size=20,
     text_color="purple",
     border_size=200,
 ):
@@ -81,12 +81,10 @@ def add_text_to_image(
     if position == "top":
         new_image = Image.new("RGB", (img.width, img.height + border_size), "white")
         new_image.paste(img, (0, border_size))  # 将原图粘贴到底部，顶部留白
-        text_position = (10, 10)
         text_y = 10
     else:
         new_image = Image.new("RGB", (img.width, img.height + border_size), "white")
         new_image.paste(img, (0, 0))  # 将原图粘贴到顶部
-        text_position = (10, img.height + 10)
         text_y = img.height + 10
 
     draw = ImageDraw.Draw(new_image)
@@ -116,20 +114,18 @@ def add_text_to_image(
     return new_image
 
 
-def label_screenshot_and_save(src_img, ops_details, target_dir, iter, distance=500):
+def label_screenshot_and_save(src_img, ops_details, target_dir, iter, distance=500, radia=20):
     img = Image.open(src_img)
     draw = ImageDraw.Draw(img)
     width, height = img.size
     for detail in ops_details:
         if detail["ops"] == "CLICK":
-            radia = 40
             x, y = detail["param"][0], detail["param"][1]
             draw.ellipse((x - radia, y - radia, x + radia, y + radia), fill="orange")
             bbox = detail.get("bbox", None)
             if bbox:
                 draw.rectangle(bbox, outline="red", width=3)
         elif detail["ops"] == "LONGPRESS":
-            radia = 40
             x, y = detail["param"][0], detail["param"][1]
             draw.ellipse((x - radia, y - radia, x + radia, y + radia), fill="blue")
             bbox = detail.get("bbox", None)
@@ -191,7 +187,7 @@ def main(args):
     #####
     adb_path = args.adb_path
     output_dir = args.output
-    max_task_step = 15
+    max_task_step = 20
     #####
 
     if args.output is not None:
@@ -213,14 +209,17 @@ def main(args):
     logger.info(f"Task Start: {args.task_instruction}")
     system_prompt, user_instruction = get_prompt_with_tools(args.task_instruction)
     history = []
+    trace_dump = []
 
     iter = 0
     while True:
+        trace_temp = {"step":iter}
         logger.info(f"Step tracing {iter}")
         screenshot_file = "./screenshot/screenshot.jpg"
         get_screenshot(adb_path)
         copy_screenshot(screenshot_file, temp_file, iter)
         current_screenshot_path = os.path.join(temp_file, f"screenshot_iter_{iter}.jpg")
+        trace_temp['image_path'] = current_screenshot_path
 
         img_before_ops, img_after_ops = get_previous_ops_img_paths()
         if img_before_ops and img_after_ops:
@@ -235,6 +234,8 @@ def main(args):
             img_after_ops=img_after_ops,
             enable_tools=True,
         )
+        trace_temp['step_response'] = response_message
+        trace_temp['step_tool_call'] = tools_calls
         history = _history
         history.append(response_message)
 
@@ -252,6 +253,7 @@ def main(args):
             function_responses, img_before, img_after, detailed_ops_infos = (
                 handle_tool_calls(tools_calls, adb_path)
             )
+            trace_temp['step_tool_call_detail'] = detailed_ops_infos
             for function_response in function_responses:
                 history.append(function_response)
             label_screenshot_and_save(
@@ -261,6 +263,8 @@ def main(args):
                 iter,
             )
             set_ops_img_paths(img_before, img_after)
+        
+        trace_dump.append(trace_temp)
 
         if bool(int(model_output.get("finish"))):
             color_print(f"[green]任务已完成啦！[/green]")
@@ -286,6 +290,14 @@ def main(args):
     screenshot_file = "./screenshot/screenshot.jpg"
     get_screenshot(adb_path)
     copy_screenshot(screenshot_file, temp_file, iter)
+    trace_dump.append({
+        'step': iter,
+        "image_path":  os.path.join(temp_file, f"screenshot_iter_{iter}.jpg"),
+        "status": 'END'
+    })
+    
+    with open(os.path.join(temp_file, "traces.json"), "w") as fw:
+        fw.write(json.dumps(trace_dump, ensure_ascii=False))
 
     logger.info(
         "Agent Looping is over, we ara about to close. copy log file to task folder"

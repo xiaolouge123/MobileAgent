@@ -13,6 +13,7 @@ from MobileAgent.prompts import tools
 openai_api_key = os.environ.get("OPENAI_API")
 azure_api_key = os.environ.get("AZURE_API")
 use_azure = bool(int(os.environ.get("USE_AZURE", 0)))
+enable_proxy = bool(int(os.environ.get("ENABLE_PROXY", 0)))
 
 
 # img_path: local image path or image url like http://xxx
@@ -204,12 +205,19 @@ def query_openai(payload):
         "http": "http://127.0.0.1:7890",
         "https": "http://127.0.0.1:7890",
     }
-    response = requests.post(
-        "https://api.openai.com/v1/chat/completions",
-        headers=headers,
-        json=payload,
-        # proxies=proxies,
-    )
+    if enable_proxy:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            proxies=proxies,
+        )
+    else:
+        response = requests.post(
+            "https://api.openai.com/v1/chat/completions",
+            headers=headers,
+            json=payload,
+        )
     logger.info(f"OpenAI response: {response.text}")
     return response.json()
 
@@ -220,12 +228,19 @@ def query_azure(payload, model="gpt4o-0513", version="2024-02-01"):
         "http": "http://127.0.0.1:7890",
         "https": "http://127.0.0.1:7890",
     }
-    response = requests.post(
-        f"https://gpt-st-westus3-1.openai.azure.com/openai/deployments/{model}/chat/completions?api-version={version}",
-        headers=headers,
-        json=payload,
-        proxies=proxies,
-    )
+    if enable_proxy:
+        response = requests.post(
+            f"https://gpt-st-westus3-1.openai.azure.com/openai/deployments/{model}/chat/completions?api-version={version}",
+            headers=headers,
+            json=payload,
+            proxies=proxies,
+        )
+    else:
+        response = requests.post(
+            f"https://gpt-st-westus3-1.openai.azure.com/openai/deployments/{model}/chat/completions?api-version={version}",
+            headers=headers,
+            json=payload,
+        )
     logger.info(f"Azure response: {response.text}")
     return response.json()
 
