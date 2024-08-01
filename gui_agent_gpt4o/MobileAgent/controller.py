@@ -126,23 +126,27 @@ def ime_switch(adb_path, ime="adb"):
         command = adb_path + f" shell ime set com.android.adbkeyboard/.AdbIME"
         subprocess.run(command, capture_output=True, text=True, shell=True)
     else:
+        # command = (
+        #     adb_path
+        #     + f" shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
+        # )
         command = (
             adb_path
-            + f" shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
+            + f" shell ime set com.sohu.inputmethod.sogou.xiaomi/.SogouIME"
         )
         subprocess.run(command, capture_output=True, text=True, shell=True)
 
 
 def type(adb_path, text):
     text = text.replace("\\n", "_").replace("\n", "_")
-    if contains_cjk(text):
-        ime_switch(adb_path, ime="adb")
-        time.sleep(1)
-        command = adb_path + f' shell am broadcast -a ADB_INPUT_TEXT --es msg "{text}"'
-        subprocess.run(command, capture_output=True, text=True, shell=True)
-        time.sleep(1)
-        ime_switch(adb_path, ime=None)
-        return
+    # if contains_cjk(text):
+    #     ime_switch(adb_path, ime="adb")
+    #     time.sleep(1)
+    #     command = adb_path + f' shell am broadcast -a ADB_INPUT_TEXT --es msg "{text}"'
+    #     subprocess.run(command, capture_output=True, text=True, shell=True)
+    #     time.sleep(1)
+    #     ime_switch(adb_path, ime=None)
+    #     return
 
     for char in text:
         if char == " ":
@@ -164,7 +168,7 @@ def type(adb_path, text):
                 adb_path + f' shell am broadcast -a ADB_INPUT_TEXT --es msg "{char}"'
             )
             subprocess.run(command, capture_output=True, text=True, shell=True)
-            time.sleep(1)
+            time.sleep(0.1)
             ime_switch(adb_path, ime=None)
 
 
