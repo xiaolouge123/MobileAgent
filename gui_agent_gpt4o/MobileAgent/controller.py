@@ -22,14 +22,17 @@ def get_size(adb_path):
     return width, height
 
 
-def get_xml(adb_path):
+def get_xml(adb_path, save_path=None):
     process = subprocess.Popen(
         [adb_path, "shell", "uiautomator", "dump"], stdout=subprocess.PIPE
     )
     process.communicate()
-    subprocess.run(
-        [adb_path, "pull", "/sdcard/window_dump.xml", "./xml/window_dump.xml"]
-    )
+    if save_path:
+        subprocess.run([adb_path, "pull", "/sdcard/window_dump.xml", save_path])
+    else:
+        subprocess.run(
+            [adb_path, "pull", "/sdcard/window_dump.xml", "./window_dump.xml"]
+        )
 
 
 def take_screenshots(
@@ -131,8 +134,7 @@ def ime_switch(adb_path, ime="adb"):
         #     + f" shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
         # )
         command = (
-            adb_path
-            + f" shell ime set com.sohu.inputmethod.sogou.xiaomi/.SogouIME"
+            adb_path + f" shell ime set com.sohu.inputmethod.sogou.xiaomi/.SogouIME"
         )
         subprocess.run(command, capture_output=True, text=True, shell=True)
 
@@ -163,12 +165,12 @@ def type(adb_path, text):
             subprocess.run(command, capture_output=True, text=True, shell=True)
         else:
             ime_switch(adb_path, ime="adb")
-            time.sleep(0.1)
+            time.sleep(0.2)
             command = (
                 adb_path + f' shell am broadcast -a ADB_INPUT_TEXT --es msg "{char}"'
             )
             subprocess.run(command, capture_output=True, text=True, shell=True)
-            time.sleep(0.1)
+            time.sleep(0.2)
             ime_switch(adb_path, ime=None)
 
 

@@ -12,7 +12,13 @@ from textwrap import wrap
 
 from MobileAgent.api import model_chat, request_with_tools
 from MobileAgent.prompts import get_prompt_with_tools, tools
-from MobileAgent.controller import get_screenshot, home, ime_switch, handle_tool_calls
+from MobileAgent.controller import (
+    get_screenshot,
+    home,
+    ime_switch,
+    handle_tool_calls,
+    get_xml,
+)
 
 
 img_before_ops, img_after_ops = None, None
@@ -219,11 +225,13 @@ def main(args):
             trace_temp = {"step": iter}
             logger.info(f"Step tracing {iter}")
             screenshot_file = "./screenshot/screenshot.jpg"
-            get_screenshot(adb_path)
-            copy_screenshot(screenshot_file, temp_file, iter)
             current_screenshot_path = os.path.join(
                 temp_file, f"screenshot_iter_{iter}.jpg"
             )
+            get_screenshot(adb_path)
+            get_xml(adb_path, save_path=current_screenshot_path + ".xml")
+            time.sleep(1)
+            copy_screenshot(screenshot_file, temp_file, iter)
             trace_temp["image_path"] = current_screenshot_path
 
             img_before_ops, img_after_ops = get_previous_ops_img_paths()
@@ -299,7 +307,9 @@ def main(args):
             break
 
     screenshot_file = "./screenshot/screenshot.jpg"
+    current_screenshot_path = os.path.join(temp_file, f"screenshot_iter_{iter}.jpg")
     get_screenshot(adb_path)
+    get_xml(adb_path, save_path=current_screenshot_path + ".xml")
     copy_screenshot(screenshot_file, temp_file, iter)
     trace_dump.append(
         {
