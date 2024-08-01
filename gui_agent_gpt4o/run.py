@@ -114,7 +114,9 @@ def add_text_to_image(
     return new_image
 
 
-def label_screenshot_and_save(src_img, ops_details, target_dir, iter, distance=500, radia=20):
+def label_screenshot_and_save(
+    src_img, ops_details, target_dir, iter, distance=500, radia=20
+):
     img = Image.open(src_img)
     draw = ImageDraw.Draw(img)
     width, height = img.size
@@ -213,89 +215,100 @@ def main(args):
 
     iter = 0
     while True:
-        trace_temp = {"step":iter}
-        logger.info(f"Step tracing {iter}")
-        screenshot_file = "./screenshot/screenshot.jpg"
-        get_screenshot(adb_path)
-        copy_screenshot(screenshot_file, temp_file, iter)
-        current_screenshot_path = os.path.join(temp_file, f"screenshot_iter_{iter}.jpg")
-        trace_temp['image_path'] = current_screenshot_path
-
-        img_before_ops, img_after_ops = get_previous_ops_img_paths()
-        if img_before_ops and img_after_ops:
-            copy_ops_screenshot(img_before_ops, img_after_ops, temp_file, iter)
-
-        response_message, tools_calls, _history = request_with_tools(
-            system_prompt,
-            user_instruction,
-            history,
-            img_cur=current_screenshot_path,
-            img_before_ops=img_before_ops,
-            img_after_ops=img_after_ops,
-            enable_tools=True,
-        )
-        trace_temp['step_response'] = response_message
-        trace_temp['step_tool_call'] = tools_calls
-        history = _history
-        history.append(response_message)
-
-        model_output = {
-            "assistant": "",
-            "asking_user_for_help": {"require_help": "0", "request_detail": ""},
-            "finish": "0",
-        }
-        if response_message["content"]:
-            model_output = json.loads(response_message["content"])
-            response_content = model_output.get("assistant")
-            color_print(f"[yellow]{response_content}[/yellow]")
-
-        if tools_calls:
-            function_responses, img_before, img_after, detailed_ops_infos = (
-                handle_tool_calls(tools_calls, adb_path)
+        try:
+            trace_temp = {"step": iter}
+            logger.info(f"Step tracing {iter}")
+            screenshot_file = "./screenshot/screenshot.jpg"
+            get_screenshot(adb_path)
+            copy_screenshot(screenshot_file, temp_file, iter)
+            current_screenshot_path = os.path.join(
+                temp_file, f"screenshot_iter_{iter}.jpg"
             )
-            trace_temp['step_tool_call_detail'] = detailed_ops_infos
-            for function_response in function_responses:
-                history.append(function_response)
-            label_screenshot_and_save(
-                current_screenshot_path,
-                detailed_ops_infos,
-                labeled_screenshot_folder,
-                iter,
+            trace_temp["image_path"] = current_screenshot_path
+
+            img_before_ops, img_after_ops = get_previous_ops_img_paths()
+            if img_before_ops and img_after_ops:
+                copy_ops_screenshot(img_before_ops, img_after_ops, temp_file, iter)
+
+            response_message, tools_calls, _history = request_with_tools(
+                system_prompt,
+                user_instruction,
+                history,
+                img_cur=current_screenshot_path,
+                img_before_ops=img_before_ops,
+                img_after_ops=img_after_ops,
+                enable_tools=True,
             )
-            set_ops_img_paths(img_before, img_after)
-        
-        trace_dump.append(trace_temp)
+            trace_temp["step_response"] = response_message
+            trace_temp["step_tool_call"] = tools_calls
+            history = _history
+            history.append(response_message)
 
-        if bool(int(model_output.get("finish"))):
-            color_print(f"[green]任务已完成啦！[/green]")
-            break
+            model_output = {
+                "assistant": "",
+                "asking_user_for_help": {"require_help": "0", "request_detail": ""},
+                "finish": "0",
+            }
+            if response_message["content"]:
+                model_output = json.loads(response_message["content"])
+                response_content = model_output.get("assistant")
+                color_print(f"[yellow]{response_content}[/yellow]")
 
-        iter += 1
-        if iter > max_task_step:
-            color_print(f"[red]超过最大步骤数目[/red]")
-            logger.warning(f"Task action step exceed {max_task_step}, force quit.")
-            break
-
-        asking_user_for_help = model_output.get("asking_user_for_help")
-        if bool(int(asking_user_for_help["require_help"])):
-            user_input = ask_question(asking_user_for_help["request_detail"])
-            if user_input != "":
-                history.append(
-                    {"role": "user", "content": [{"type": "text", "text": user_input}]}
+            if tools_calls:
+                function_responses, img_before, img_after, detailed_ops_infos = (
+                    handle_tool_calls(tools_calls, adb_path)
                 )
-            asking_user_for_help = "0"
+                trace_temp["step_tool_call_detail"] = detailed_ops_infos
+                for function_response in function_responses:
+                    history.append(function_response)
+                label_screenshot_and_save(
+                    current_screenshot_path,
+                    detailed_ops_infos,
+                    labeled_screenshot_folder,
+                    iter,
+                )
+                set_ops_img_paths(img_before, img_after)
 
-        time.sleep(2)
+            trace_dump.append(trace_temp)
+
+            if bool(int(model_output.get("finish"))):
+                color_print(f"[green]任务已完成啦！[/green]")
+                break
+
+            iter += 1
+            if iter > max_task_step:
+                color_print(f"[red]超过最大步骤数目[/red]")
+                logger.warning(f"Task action step exceed {max_task_step}, force quit.")
+                break
+
+            asking_user_for_help = model_output.get("asking_user_for_help")
+            if bool(int(asking_user_for_help["require_help"])):
+                user_input = ask_question(asking_user_for_help["request_detail"])
+                if user_input != "":
+                    history.append(
+                        {
+                            "role": "user",
+                            "content": [{"type": "text", "text": user_input}],
+                        }
+                    )
+                asking_user_for_help = "0"
+
+            time.sleep(2)
+        except Exception as e:
+            logger.error(e)
+            break
 
     screenshot_file = "./screenshot/screenshot.jpg"
     get_screenshot(adb_path)
     copy_screenshot(screenshot_file, temp_file, iter)
-    trace_dump.append({
-        'step': iter,
-        "image_path":  os.path.join(temp_file, f"screenshot_iter_{iter}.jpg"),
-        "status": 'END'
-    })
-    
+    trace_dump.append(
+        {
+            "step": iter,
+            "image_path": os.path.join(temp_file, f"screenshot_iter_{iter}.jpg"),
+            "status": "END",
+        }
+    )
+
     with open(os.path.join(temp_file, "traces.json"), "w") as fw:
         fw.write(json.dumps(trace_dump, ensure_ascii=False))
 
@@ -306,6 +319,7 @@ def main(args):
     destination_path = os.path.join(temp_file, f"{uuid}.log")
     shutil.copy(source_path, destination_path)
     home(adb_path)
+    logger.info(f"Task {uuid} is done.")
 
 
 if __name__ == "__main__":

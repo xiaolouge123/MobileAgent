@@ -127,7 +127,8 @@ def ime_switch(adb_path, ime="adb"):
         subprocess.run(command, capture_output=True, text=True, shell=True)
     else:
         command = (
-            adb_path + f" shell ime set com.sohu.inputmethod.sogou.xiaomi/.SogouIME"
+            adb_path
+            + f" shell ime set com.google.android.inputmethod.latin/com.android.inputmethod.latin.LatinIME"
         )
         subprocess.run(command, capture_output=True, text=True, shell=True)
 
@@ -157,10 +158,14 @@ def type(adb_path, text):
             command = adb_path + f' shell input text "{char}"'
             subprocess.run(command, capture_output=True, text=True, shell=True)
         else:
+            ime_switch(adb_path, ime="adb")
+            time.sleep(0.1)
             command = (
                 adb_path + f' shell am broadcast -a ADB_INPUT_TEXT --es msg "{char}"'
             )
             subprocess.run(command, capture_output=True, text=True, shell=True)
+            time.sleep(1)
+            ime_switch(adb_path, ime=None)
 
 
 def enter(adb_path):
@@ -328,6 +333,7 @@ def control_handler(tool_call, adb_path):
             {"ops": "TYPE", "param": text_content, "name": "text", "type": "controller"}
         )
         # press enter
+        time.sleep(delay)
         enter(adb_path)
         ops_detail.append(
             {"ops": "ENTER", "param": None, "name": "text", "type": "controller"}
